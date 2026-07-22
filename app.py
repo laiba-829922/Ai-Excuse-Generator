@@ -1,10 +1,9 @@
 import os
 import time
-import random
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
-from google import genai
+from groq import Groq
 
 
 # ================= LOAD ENV =================
@@ -16,20 +15,20 @@ app = Flask(__name__)
 
 # ================= ENV VARIABLES =================
 
-api_key = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 WEB3FORMS_ACCESS_KEY = os.getenv("WEB3FORMS_ACCESS_KEY")
 
 
-if not api_key:
-    raise ValueError("GEMINI_API_KEY not found")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY not found")
 
 if not WEB3FORMS_ACCESS_KEY:
     raise ValueError("WEB3FORMS_ACCESS_KEY not found")
 
 
-# ================= GEMINI CLIENT =================
+# ================= GROQ CLIENT =================
 
-client = genai.Client(api_key=api_key)
+client = Groq(api_key=GROQ_API_KEY)
 
 
 # ================= HOME PAGE =================
@@ -90,7 +89,7 @@ def generate_excuse():
         }), 400
 
     prompt = f"""
-Create one safe, natural, believable and human-written excuse.
+Generate one safe, natural, believable and realistic excuse.
 
 Situation: {situation}
 Category: {category}
@@ -98,22 +97,23 @@ Tone: {tone}
 Language: {language}
 Length: {length}
 
-Rules:
+Follow these rules carefully:
+
 - Return only the excuse.
-- Do not add a title, heading, explanation or quotation marks.
-- For short length, write exactly 1 sentence.
-- For medium length, write 2 to 3 sentences.
-- For long length, write 4 to 5 sentences.
-- Follow the selected language and tone.
-- Keep the wording natural and non-repetitive.
-- Do not create excuses for illegal, dangerous, harmful,
-  dishonest or unethical activities.
+- Do not include a title, heading, explanation or quotation marks.
+- If length is short, write exactly 1 sentence.
+- If length is medium, write 2 to 3 sentences.
+- If length is long, write 4 to 5 sentences.
+- Match the selected category, tone and language.
+- Make the wording sound natural and human-written.
+- Avoid repetitive or robotic wording.
+- Do not create excuses for illegal, dangerous, harmful or unethical activities.
 """
 
     models = [
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-preview-05-20"
-]
+        "llama-3.1-8b-instant",
+        "llama-3.3-70b-versatile"
+    ]
 
     last_error = None
 
@@ -123,42 +123,54 @@ Rules:
 
             try:
                 print(
-                    f"Trying model: {model_name}, "
-                    f"attempt: {attempt + 1}"
+                    f"Trying Groq model: {model_name} | "
+                    f"Attempt: {attempt + 1}"
                 )
 
-                response = client.models.generate_content(
+                response = client.chat.completions.create(
                     model=model_name,
-                    contents=prompt
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a safe AI excuse generator. "
+                                "Follow the user's requested language, "
+                                "tone and length. Return only the excuse."
+                            )
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    temperature=0.8,
+                    max_tokens=350
                 )
 
-                if response.text and response.text.strip():
+                excuse = response.choices[0].message.content
 
-                    excuse = response.text.strip()
-
+                if excuse and excuse.strip():
                     return jsonify({
-                        "excuse": excuse
+                        "excuse": excuse.strip()
                     }), 200
 
             except Exception as error:
-
                 last_error = error
 
                 print(
-                    f"Gemini Error | Model: {model_name} | "
+                    f"Groq Error | Model: {model_name} | "
                     f"Attempt: {attempt + 1} | {error}"
                 )
 
                 if attempt < 2:
-                    delay = (2 ** attempt) + random.uniform(0, 1)
-                    time.sleep(delay)
+                    time.sleep(2 ** attempt)
 
-    print("Final Gemini Error:", last_error)
+    print("Final Groq Error:", last_error)
 
     return jsonify({
         "error": (
             "AI is temporarily busy. "
-            "Please wait a minute and try again."
+            "Please wait a few seconds and try again."
         )
     }), 503
 
@@ -174,6 +186,8 @@ def page_not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
+    print("Internal Server Error:", error)
+
     return jsonify({
         "error": "Something went wrong. Please try again."
     }), 500

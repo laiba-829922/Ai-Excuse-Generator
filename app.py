@@ -93,73 +93,66 @@ def generate_excuse():
             "error": "Situation is too long. Please write a shorter description."
         }), 400
 
-    prompt = f"""
-Create one believable, clear and natural excuse according to the
-details provided below.
+     prompt = f"""
+User ki situation ke mutabiq ek natural aur believable excuse likho.
 
-USER DETAILS
+Situation: {situation}
+Category: {category}
+Tone: {tone}
+Language: {language}
+Length: {length}
 
-Situation:
-{situation}
+ROMAN URDU RULES:
 
-Category:
-{category}
+Agar language Roman Urdu ho:
 
-Tone:
-{tone}
+- Pakistani everyday Roman Urdu use karo.
+- Sentence ka word order bilkul natural hona chahiye.
+- Pehle subject, phir situation/reason, phir result likho.
+- Grammar correct rakho.
+- Past situation mein "tha", "thi", "the", "ho gaya tha",
+  "nahi kar saka" ya "nahi kar saki" sahi jagah use karo.
+- "Mujhe busy ho gaya" jaisi ghalat wording kabhi mat likho.
+- Iski jagah "Main busy ho gaya tha" ya
+  "Mujhe zaroori kaam aa gaya tha" likho.
+- English se word-by-word translation mat karo.
+- Hindi words jaise "samay", "kaaran", "praapt",
+  "avashyak" aur "kintu" use mat karo.
 
-Language:
-{language}
+NATURAL EXAMPLES:
 
-Length:
-{length}
+Wrong:
+Mujhe thora busy ho gaya is liye main school ja nahi sakta.
 
+Correct:
+Main thora busy ho gaya tha, is liye school nahi ja saka.
 
-LANGUAGE RULES
+Wrong:
+Mujhe assignment complete karne mein samay nahi mila.
 
-If language is Roman Urdu:
+Correct:
+Mujhe assignment complete karne ka time nahi mil saka.
 
-- Write in simple, everyday Pakistani Roman Urdu.
-- Write the way a Pakistani person naturally speaks.
-- Use familiar words such as:
-  "main", "mera", "meri", "mujhe", "kyun ke",
-  "is liye", "thora", "kaafi", "der ho gayi".
-- Do not use formal Hindi or unnatural translated words.
-- Never use words such as:
-  "samay", "jhaankna", "praapt", "kaaran",
-  "kharach kiya", "avashyak" or "kintu".
-- Do not translate English sentences word by word.
-- Keep the sentence grammatically clear and understandable.
+Wrong:
+Mere ghar mein kaam aa gaya.
 
-If language is Urdu:
+Correct:
+Ghar mein achanak zaroori kaam aa gaya tha, is liye mujhe rukna pada.
 
-- Write only in natural Urdu script.
-- Use simple vocabulary.
+LENGTH RULES:
 
-If language is English:
+- Short: exactly 1 complete and natural sentence.
+- Medium: 2 to 3 complete sentences.
+- Long: 4 to 5 complete sentences.
 
-- Write in natural and simple English.
+FINAL RULES:
 
-
-LENGTH RULES
-
-- Short: Write exactly one concise sentence.
-- Medium: Write exactly two or three sentences.
-- Long: Write exactly four or five sentences.
-
-
-IMPORTANT RULES
-
-- Return only the final excuse.
-- Do not add a title, heading, label or explanation.
-- Do not use quotation marks.
-- Match the selected category and tone.
-- Do not repeat the situation word for word.
-- Do not add random or confusing details.
-- Make the excuse sound natural, believable and human-written.
-- Do not produce robotic or awkward wording.
-- Do not create excuses for illegal, dangerous, harmful,
-  fraudulent or seriously unethical activities.
+- Sirf final excuse return karo.
+- Heading, title, explanation ya quotation marks mat lagao.
+- Sentence adhura ya grammar ke baghair mat likho.
+- Situation ko word-by-word repeat mat karo.
+- Excuse simple, realistic aur human-written lagna chahiye.
+- Illegal, dangerous ya harmful activity ke liye excuse mat banao.
 """
 
     models = [
@@ -185,13 +178,11 @@ IMPORTANT RULES
                         {
                             "role": "system",
                             "content": (
-                                "You create natural and believable excuses "
-                                "for Pakistani users. When Roman Urdu is "
-                                "selected, always write simple everyday "
-                                "Pakistani Roman Urdu. Never use formal Hindi, "
-                                "literal translations or awkward wording. "
-                                "Follow the requested language, tone and "
-                                "length exactly. Return only the final excuse."
+                                "You are an expert Pakistani Roman Urdu writer. "
+                                "Write grammatically correct, naturally ordered "
+                                "and conversational sentences. Never use broken "
+                                "Roman Urdu or literal Hindi-style translation. "
+                                "Return only the final excuse."
                             )
                         },
                         {
@@ -199,7 +190,7 @@ IMPORTANT RULES
                             "content": prompt
                         }
                     ],
-                    temperature=0.65,
+                    temperature=0.35,
                     max_tokens=400
                 )
 
@@ -208,8 +199,6 @@ IMPORTANT RULES
                 if excuse and excuse.strip():
 
                     excuse = excuse.strip()
-
-                    # Remove accidental quotation marks
                     excuse = excuse.strip('"').strip("'").strip()
 
                     return jsonify({
@@ -236,27 +225,6 @@ IMPORTANT RULES
             "Please wait a few seconds and try again."
         )
     }), 503
-
-
-# ================= ERROR HANDLERS =================
-
-@app.errorhandler(404)
-def page_not_found(error):
-
-    return jsonify({
-        "error": "Page not found."
-    }), 404
-
-
-@app.errorhandler(500)
-def internal_error(error):
-
-    print("Internal Server Error:", error)
-
-    return jsonify({
-        "error": "Something went wrong. Please try again."
-    }), 500
-
 
 # ================= RUN APP =================
 

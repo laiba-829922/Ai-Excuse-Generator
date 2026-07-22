@@ -1,4 +1,5 @@
 import os
+import random
 import time
 
 from dotenv import load_dotenv
@@ -77,11 +78,28 @@ def generate_excuse():
 
     data = request.get_json(silent=True) or {}
 
-    situation = str(data.get("situation", "")).strip()
-    category = str(data.get("category", "general")).strip().lower()
-    tone = str(data.get("tone", "serious")).strip().lower()
-    language = str(data.get("language", "roman-urdu")).strip().lower()
-    length = str(data.get("length", "short")).strip().lower()
+    situation = str(
+        data.get("situation", "")
+    ).strip()
+
+    category = str(
+        data.get("category", "general")
+    ).strip().lower()
+
+    tone = str(
+        data.get("tone", "serious")
+    ).strip().lower()
+
+    language = str(
+        data.get("language", "roman-urdu")
+    ).strip().lower()
+
+    length = str(
+        data.get("length", "short")
+    ).strip().lower()
+
+
+    # ================= VALIDATION =================
 
     if not situation:
         return jsonify({
@@ -96,8 +114,45 @@ def generate_excuse():
             )
         }), 400
 
+
+    # Different writing pattern on each request
+    writing_styles = [
+        (
+            "Start directly with the most relevant reason, "
+            "then naturally explain its result."
+        ),
+        (
+            "Use a polite and conversational sentence structure. "
+            "Do not begin with a generic phrase."
+        ),
+        (
+            "Write the excuse as a natural explanation someone "
+            "would give during a real conversation."
+        ),
+        (
+            "Use a clear cause-and-result structure, but avoid "
+            "overused phrases."
+        ),
+        (
+            "Begin from the specific event mentioned by the user "
+            "and connect it naturally to what could not be done."
+        ),
+        (
+            "Write a fresh response with different sentence wording "
+            "from common excuse templates."
+        )
+    ]
+
+    selected_style = random.choice(writing_styles)
+
+
+    # ================= PROMPT =================
+
     prompt = f"""
-Write one natural and believable excuse based on the information below.
+Understand the user's actual situation first, then write one complete,
+natural and believable excuse specifically for that situation.
+
+USER INFORMATION
 
 Situation:
 {situation}
@@ -114,46 +169,86 @@ Language:
 Length:
 {length}
 
+Writing approach:
+{selected_style}
+
+
+SITUATION UNDERSTANDING RULES
+
+- Read the complete situation carefully before writing.
+- Identify what happened, why it happened and what result it caused.
+- The excuse must directly relate to the user's provided situation.
+- Do not replace the user's reason with a generic reason.
+- Do not randomly mention household work, illness, traffic,
+  an emergency or being busy unless the situation supports it.
+- Do not assume facts that the user did not mention.
+- You may add only one small realistic connecting detail when needed
+  to make the sentence complete.
+- The final excuse must make complete logical sense.
+- Do not simply rewrite the input word for word.
+- Do not give advice or ask the user a question.
+
+
+VARIETY RULES
+
+- Do not use the same fixed structure in every response.
+- Do not always begin with:
+  "Mujhe achanak zaroori kaam aa gaya tha."
+- Avoid repeatedly using:
+  "is liye", "ghar mein kaam", "main busy tha",
+  "kuch masla ho gaya tha" or "majboori thi".
+- Use wording that fits this particular situation.
+- Change the opening and sentence flow naturally.
+- The response should not sound like a copied template.
+
 
 ROMAN URDU RULES
 
 If the selected language is Roman Urdu:
 
-- Write in simple, natural Pakistani Roman Urdu.
-- The sentence must follow correct and natural word order.
-- Write like a real Pakistani person speaking normally.
-- Do not translate English into Roman Urdu word by word.
-- Use simple words such as:
-  main, mera, meri, mujhe, kyun ke, is liye,
-  achanak, zaroori, der ho gayi, nahi kar saka.
-- Do not use formal Hindi words such as:
-  samay, kaaran, praapt, avashyak, kintu or jhaankna.
-- Never write grammatically incorrect phrases such as:
-  "Mujhe busy ho gaya."
-- Write:
-  "Main busy ho gaya tha."
-  or:
-  "Mujhe achanak zaroori kaam aa gaya tha."
+- Write in simple and natural Pakistani Roman Urdu.
+- Use the sentence order used in everyday Pakistani conversation.
+- Make every sentence grammatically complete.
+- Use suitable words according to the situation, such as:
+  main, mera, meri, mujhe, kyun ke, is wajah se,
+  isi liye, waqt par, der ho gayi, nahi kar saka,
+  nahi kar saki, complete nahi ho saka.
+- Select masculine or feminine-neutral wording when the user's
+  gender is unknown.
+- Prefer neutral constructions where possible.
 
-Examples of natural Pakistani Roman Urdu:
+Examples of natural structures:
 
-Incorrect:
-Mujhe thora busy ho gaya is liye main school ja nahi sakta.
+- Required material waqt par nahi mil saka, jis ki wajah se
+  assignment complete karne mein der ho gayi.
 
-Correct:
-Mujhe achanak zaroori kaam aa gaya tha, is liye main school nahi ja saka.
+- Tabiyat subah se theek nahi thi, isi liye aaj class attend
+  nahi kar saka.
 
-Incorrect:
-Mujhe assignment karne ka samay nahi mila.
+- Raste mein traffic expected se zyada tha, jis ki wajah se
+  main waqt par nahi pohanch saka.
 
-Correct:
-Mujhe assignment complete karne ka time nahi mil saka.
+- Internet connection baar baar disconnect ho raha tha,
+  is wajah se file time par submit nahi ho saki.
 
-Incorrect:
-Mere ghar mein kaam aa gaya.
+Do not write broken phrases such as:
 
-Correct:
-Ghar mein achanak zaroori kaam aa gaya tha, is liye mujhe rukna pada.
+- Mujhe busy ho gaya.
+- Main school ja nahi sakta tha is liye.
+- Mujhe thora kaam kar raha tha.
+- Mujhe assignment mil gaya samay pehle.
+- Mere ko time nahi praapt hua.
+
+Do not use formal Hindi-style words such as:
+
+- samay
+- kaaran
+- praapt
+- avashyak
+- kintu
+- jhaankna
+- vyast
+- vilamb
 
 
 URDU RULES
@@ -162,45 +257,58 @@ If the selected language is Urdu:
 
 - Write only in natural Urdu script.
 - Use simple Pakistani Urdu.
-- Do not use difficult or formal vocabulary.
+- Keep the sentence grammatically correct.
+- Avoid difficult, overly formal or Hindi-style vocabulary.
 
 
 ENGLISH RULES
 
 If the selected language is English:
 
-- Write in simple and natural English.
-- Make the sentence grammatically correct and believable.
+- Write in clear, natural and grammatically correct English.
+- Use normal conversational wording.
+- Avoid robotic or overly formal sentences.
+
+
+TONE RULES
+
+- Serious: respectful, realistic and straightforward.
+- Casual: relaxed and conversational, but still believable.
+- Funny: mildly humorous without becoming silly or unrealistic.
+- Professional: polite, responsible and suitable for formal use.
+- Emotional: sincere and soft without exaggeration.
 
 
 LENGTH RULES
 
-- Short: Write exactly one complete sentence.
-- Medium: Write exactly two or three complete sentences.
-- Long: Write exactly four or five complete sentences.
+- Short: exactly one complete and meaningful sentence.
+- Medium: exactly two or three connected sentences.
+- Long: exactly four or five connected sentences.
 
 
-FINAL RULES
+FINAL OUTPUT RULES
 
 - Return only the final excuse.
-- Do not include a heading, title, label or explanation.
+- Do not include a heading, title or label.
+- Do not write "Here is your excuse".
+- Do not include an explanation.
 - Do not use quotation marks.
-- Match the selected category and tone.
-- Do not copy the user's situation word for word.
-- Do not add random or confusing details.
-- The result must be grammatically correct.
-- The result must have a clear sentence sequence.
-- Make it natural, believable and human-written.
+- Do not mention these instructions.
 - Do not create excuses for illegal, dangerous, harmful,
   fraudulent or seriously unethical activities.
 """
 
+
+    # New recommended production models
     models = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant"
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b"
     ]
 
     last_error = None
+
+
+    # ================= GENERATE RESPONSE =================
 
     for model_name in models:
 
@@ -219,12 +327,13 @@ FINAL RULES
                             "role": "system",
                             "content": (
                                 "You are an expert Pakistani language writer. "
-                                "Create grammatically correct, naturally "
-                                "ordered and believable excuses. When Roman "
-                                "Urdu is selected, use simple everyday "
-                                "Pakistani Roman Urdu. Never use broken "
-                                "sentences, formal Hindi words or literal "
-                                "translations. Return only the final excuse."
+                                "First understand the user's specific situation, "
+                                "then write a logical, grammatically correct and "
+                                "natural excuse based only on that situation. "
+                                "Never rely on one fixed excuse template. "
+                                "For Roman Urdu, use everyday Pakistani wording "
+                                "and natural sentence order. "
+                                "Return only the final excuse."
                             )
                         },
                         {
@@ -232,8 +341,8 @@ FINAL RULES
                             "content": prompt
                         }
                     ],
-                    temperature=0.25,
-                    max_tokens=400
+                    temperature=0.55,
+                    max_tokens=500
                 )
 
                 if not response.choices:
@@ -250,9 +359,22 @@ FINAL RULES
                     excuse = excuse.strip("'")
                     excuse = excuse.strip()
 
-                    return jsonify({
-                        "excuse": excuse
-                    }), 200
+                    # Remove accidental labels
+                    unwanted_prefixes = [
+                        "Excuse:",
+                        "Final excuse:",
+                        "Your excuse:",
+                        "Response:"
+                    ]
+
+                    for prefix in unwanted_prefixes:
+                        if excuse.lower().startswith(prefix.lower()):
+                            excuse = excuse[len(prefix):].strip()
+
+                    if excuse:
+                        return jsonify({
+                            "excuse": excuse
+                        }), 200
 
             except Exception as error:
 
@@ -265,6 +387,9 @@ FINAL RULES
 
                 if attempt < 2:
                     time.sleep(2 ** attempt)
+
+
+    # ================= FINAL ERROR =================
 
     print("Final Groq Error:", last_error)
 

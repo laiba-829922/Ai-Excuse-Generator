@@ -78,41 +78,93 @@ def generate_excuse():
     data = request.get_json(silent=True) or {}
 
     situation = str(data.get("situation", "")).strip()
-    category = str(data.get("category", "general")).strip()
-    tone = str(data.get("tone", "serious")).strip()
-    language = str(data.get("language", "roman-urdu")).strip()
-    length = str(data.get("length", "short")).strip()
+    category = str(data.get("category", "general")).strip().lower()
+    tone = str(data.get("tone", "serious")).strip().lower()
+    language = str(data.get("language", "roman-urdu")).strip().lower()
+    length = str(data.get("length", "short")).strip().lower()
 
     if not situation:
         return jsonify({
             "error": "Please write your situation first."
         }), 400
 
+    if len(situation) > 1000:
+        return jsonify({
+            "error": "Situation is too long. Please write a shorter description."
+        }), 400
+
     prompt = f"""
-Generate one safe, natural, believable and realistic excuse.
+Create one believable, clear and natural excuse according to the
+details provided below.
 
-Situation: {situation}
-Category: {category}
-Tone: {tone}
-Language: {language}
-Length: {length}
+USER DETAILS
 
-Follow these rules carefully:
+Situation:
+{situation}
 
-- Return only the excuse.
-- Do not include a title, heading, explanation or quotation marks.
-- If length is short, write exactly 1 sentence.
-- If length is medium, write 2 to 3 sentences.
-- If length is long, write 4 to 5 sentences.
-- Match the selected category, tone and language.
-- Make the wording sound natural and human-written.
-- Avoid repetitive or robotic wording.
-- Do not create excuses for illegal, dangerous, harmful or unethical activities.
+Category:
+{category}
+
+Tone:
+{tone}
+
+Language:
+{language}
+
+Length:
+{length}
+
+
+LANGUAGE RULES
+
+If language is Roman Urdu:
+
+- Write in simple, everyday Pakistani Roman Urdu.
+- Write the way a Pakistani person naturally speaks.
+- Use familiar words such as:
+  "main", "mera", "meri", "mujhe", "kyun ke",
+  "is liye", "thora", "kaafi", "der ho gayi".
+- Do not use formal Hindi or unnatural translated words.
+- Never use words such as:
+  "samay", "jhaankna", "praapt", "kaaran",
+  "kharach kiya", "avashyak" or "kintu".
+- Do not translate English sentences word by word.
+- Keep the sentence grammatically clear and understandable.
+
+If language is Urdu:
+
+- Write only in natural Urdu script.
+- Use simple vocabulary.
+
+If language is English:
+
+- Write in natural and simple English.
+
+
+LENGTH RULES
+
+- Short: Write exactly one concise sentence.
+- Medium: Write exactly two or three sentences.
+- Long: Write exactly four or five sentences.
+
+
+IMPORTANT RULES
+
+- Return only the final excuse.
+- Do not add a title, heading, label or explanation.
+- Do not use quotation marks.
+- Match the selected category and tone.
+- Do not repeat the situation word for word.
+- Do not add random or confusing details.
+- Make the excuse sound natural, believable and human-written.
+- Do not produce robotic or awkward wording.
+- Do not create excuses for illegal, dangerous, harmful,
+  fraudulent or seriously unethical activities.
 """
 
     models = [
-        "llama-3.1-8b-instant",
-        "llama-3.3-70b-versatile"
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant"
     ]
 
     last_error = None
@@ -133,9 +185,13 @@ Follow these rules carefully:
                         {
                             "role": "system",
                             "content": (
-                                "You are a safe AI excuse generator. "
-                                "Follow the user's requested language, "
-                                "tone and length. Return only the excuse."
+                                "You create natural and believable excuses "
+                                "for Pakistani users. When Roman Urdu is "
+                                "selected, always write simple everyday "
+                                "Pakistani Roman Urdu. Never use formal Hindi, "
+                                "literal translations or awkward wording. "
+                                "Follow the requested language, tone and "
+                                "length exactly. Return only the final excuse."
                             )
                         },
                         {
@@ -143,18 +199,25 @@ Follow these rules carefully:
                             "content": prompt
                         }
                     ],
-                    temperature=0.8,
-                    max_tokens=350
+                    temperature=0.65,
+                    max_tokens=400
                 )
 
                 excuse = response.choices[0].message.content
 
                 if excuse and excuse.strip():
+
+                    excuse = excuse.strip()
+
+                    # Remove accidental quotation marks
+                    excuse = excuse.strip('"').strip("'").strip()
+
                     return jsonify({
-                        "excuse": excuse.strip()
+                        "excuse": excuse
                     }), 200
 
             except Exception as error:
+
                 last_error = error
 
                 print(
@@ -179,6 +242,7 @@ Follow these rules carefully:
 
 @app.errorhandler(404)
 def page_not_found(error):
+
     return jsonify({
         "error": "Page not found."
     }), 404
@@ -186,6 +250,7 @@ def page_not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
+
     print("Internal Server Error:", error)
 
     return jsonify({

@@ -111,9 +111,9 @@ Rules:
 """
 
     models = [
-        "gemini-2.5-flash-lite",
-        "gemini-2.5-flash"
-    ]
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-preview-05-20"
+]
 
     last_error = None
 

@@ -1,5 +1,5 @@
 import os
-import requests
+import time
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
@@ -47,69 +47,20 @@ def about():
 
 # ================= CONTACT PAGE =================
 
-@app.route("/contact", methods=["GET", "POST"])
+@app.route("/contact")
 def contact():
 
-    if request.method == "POST":
+    success = request.args.get("success")
 
-        name = request.form.get("name", "").strip()
-        email = request.form.get("email", "").strip()
-        message = request.form.get("message", "").strip()
-
-        if not name or not email or not message:
-            return render_template(
-                "contact.html",
-                error="Please fill all fields."
-            )
-
-        try:
-            payload = {
-                "access_key": WEB3FORMS_ACCESS_KEY,
-                "name": name,
-                "email": email,
-                "subject": "New Contact Message - ExcuseAI",
-                "message": message,
-                "from_name": "ExcuseAI Contact Form"
-            }
-
-            response = requests.post(
-                "https://api.web3forms.com/submit",
-                json=payload,
-                timeout=15
-            )
-
-            result = response.json()
-
-            if response.ok and result.get("success"):
-                return render_template(
-                    "contact.html",
-                    success="Your message has been sent successfully."
-                )
-
-            print("Web3Forms Error:", result)
-
-            return render_template(
-                "contact.html",
-                error="Message could not be sent. Please try again."
-            )
-
-        except requests.RequestException as error:
-            print("Contact Request Error:", error)
-
-            return render_template(
-                "contact.html",
-                error="Message could not be sent. Please try again."
-            )
-
-        except Exception as error:
-            print("Contact Error:", error)
-
-            return render_template(
-                "contact.html",
-                error="Message could not be sent. Please try again."
-            )
-
-    return render_template("contact.html")
+    return render_template(
+        "contact.html",
+        web3forms_key=WEB3FORMS_ACCESS_KEY,
+        success=(
+            "Your message has been sent successfully."
+            if success == "1"
+            else None
+        )
+    )
 
 
 # ================= FAQ PAGE =================
@@ -126,11 +77,11 @@ def generate_excuse():
 
     data = request.get_json(silent=True) or {}
 
-    situation = data.get("situation", "").strip()
-    category = data.get("category", "general")
-    tone = data.get("tone", "serious")
-    language = data.get("language", "roman-urdu")
-    length = data.get("length", "short")
+    situation = str(data.get("situation", "")).strip()
+    category = str(data.get("category", "general")).strip()
+    tone = str(data.get("tone", "serious")).strip()
+    language = str(data.get("language", "roman-urdu")).strip()
+    length = str(data.get("length", "short")).strip()
 
     if not situation:
         return jsonify({
@@ -147,48 +98,58 @@ Language: {language}
 Length: {length}
 
 Rules:
-You are a professional AI Excuse Generator.
-
-Your job is to create believable, natural, and realistic excuses
-that sound human-written.
-
-Always follow the user's selected category, tone, language, and length.
-
 - Return only the excuse.
-- Do not include any title, heading, explanation, or quotation marks.
-- If the selected length is "short", write exactly 1 sentence.
-- If the selected length is "medium", write 2–3 sentences.
-- If the selected length is "long", write 4–5 sentences.
-- Make the excuse sound natural and convincing.
+- Do not include a title, heading, explanation, or quotation marks.
+- If length is short, write exactly 1 sentence.
+- If length is medium, write 2 to 3 sentences.
+- If length is long, write 4 to 5 sentences.
+- Make it sound natural and human-written.
 - Match the selected tone and language.
 - Avoid repetitive wording.
-- Do not generate excuses for illegal, dangerous, harmful,
-  or unethical activities.
+- Do not help with illegal, dangerous, harmful, or unethical activities.
 """
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-3.5-flash",
-            contents=prompt
+    models = [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite"
+    ]
+
+    last_error = None
+
+    for model_name in models:
+
+        for attempt in range(3):
+
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt
+                )
+
+                if response.text and response.text.strip():
+                    return jsonify({
+                        "excuse": response.text.strip()
+                    }), 200
+
+            except Exception as error:
+                last_error = error
+
+                print(
+                    f"Gemini Error | Model: {model_name} | "
+                    f"Attempt: {attempt + 1} | {error}"
+                )
+
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+
+    print("Final Gemini Error:", last_error)
+
+    return jsonify({
+        "error": (
+            "AI is temporarily busy. "
+            "Please wait a few seconds and try again."
         )
-
-        if not response.text:
-            return jsonify({
-                "error": "AI has generated no response."
-            }), 500
-
-        excuse = response.text.strip()
-
-        return jsonify({
-            "excuse": excuse
-        })
-
-    except Exception as error:
-        print("Gemini Error:", error)
-
-        return jsonify({
-            "error": "AI response not found. Please try again."
-        }), 500
+    }), 503
 
 
 # ================= RUN APP =================

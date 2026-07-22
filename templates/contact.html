@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -14,8 +15,12 @@
         rel="stylesheet"
         href="{{ url_for('static', filename='style.css') }}"
     >
-    <link rel="icon" type="image/png"
-      href="{{ url_for('static', filename='images/favicon.png') }}">
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="{{ url_for('static', filename='images/favicon.png') }}"
+    >
 </head>
 
 <body>
@@ -24,8 +29,11 @@
     <header class="site-header">
 
         <a href="{{ url_for('home') }}" class="logo">
-    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="ExcuseAI Logo">
-</a>
+            <img
+                src="{{ url_for('static', filename='images/logo.png') }}"
+                alt="ExcuseAI Logo"
+            >
+        </a>
 
         <nav>
             <a href="{{ url_for('home') }}">Home</a>
@@ -52,18 +60,50 @@
                 </p>
             </div>
 
-{% if success %}
-    <div class="form-message success-message">
-        {{ success }}
-    </div>
-{% endif %}
 
-{% if error %}
-    <div class="form-message error-message">
-        {{ error }}
-    </div>
-{% endif %}
-            <form class="contact-form" method="POST" action="{{ url_for('contact') }}">
+            {% if success %}
+                <div class="form-message success-message">
+                    {{ success }}
+                </div>
+            {% endif %}
+
+
+            <form
+                class="contact-form"
+                action="https://api.web3forms.com/submit"
+                method="POST"
+            >
+
+                <input
+                    type="hidden"
+                    name="access_key"
+                    value="{{ web3forms_key }}"
+                >
+
+                <input
+                    type="hidden"
+                    name="subject"
+                    value="New Contact Message - ExcuseAI"
+                >
+
+                <input
+                    type="hidden"
+                    name="from_name"
+                    value="ExcuseAI Contact Form"
+                >
+
+                <input
+                    type="hidden"
+                    name="redirect"
+                    value="https://ai-excuse-generator-yott.onrender.com/contact?success=1"
+                >
+
+                <input
+                    type="checkbox"
+                    name="botcheck"
+                    style="display: none;"
+                >
+
 
                 <div class="contact-field">
                     <label for="name">Your Name</label>

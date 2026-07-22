@@ -1,12 +1,9 @@
 import os
-import smtplib
+import requests
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 from google import genai
-
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 
 # ================= LOAD ENV =================
@@ -19,15 +16,14 @@ app = Flask(__name__)
 # ================= ENV VARIABLES =================
 
 api_key = os.getenv("GEMINI_API_KEY")
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASS")
+WEB3FORMS_ACCESS_KEY = os.getenv("WEB3FORMS_ACCESS_KEY")
 
 
 if not api_key:
     raise ValueError("GEMINI_API_KEY not found")
 
-if not EMAIL_USER or not EMAIL_PASS:
-    raise ValueError("EMAIL_USER or EMAIL_PASS not found")
+if not WEB3FORMS_ACCESS_KEY:
+    raise ValueError("WEB3FORMS_ACCESS_KEY not found")
 
 
 # ================= GEMINI CLIENT =================
@@ -67,46 +63,46 @@ def contact():
             )
 
         try:
-            email_message = MIMEMultipart()
+            payload = {
+                "access_key": WEB3FORMS_ACCESS_KEY,
+                "name": name,
+                "email": email,
+                "subject": "New Contact Message - ExcuseAI",
+                "message": message,
+                "from_name": "ExcuseAI Contact Form"
+            }
 
-            email_message["From"] = EMAIL_USER
-            email_message["To"] = EMAIL_USER
-            email_message["Reply-To"] = email
-            email_message["Subject"] = "New Contact Message - ExcuseAI"
-
-            body = f"""
-New message received from ExcuseAI contact form.
-
-Name: {name}
-Email: {email}
-
-Message:
-{message}
-"""
-
-            email_message.attach(
-                MIMEText(body, "plain")
+            response = requests.post(
+                "https://api.web3forms.com/submit",
+                json=payload,
+                timeout=15
             )
 
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
+            result = response.json()
 
-                server.login(
-                    EMAIL_USER,
-                    EMAIL_PASS
+            if response.ok and result.get("success"):
+                return render_template(
+                    "contact.html",
+                    success="Your message has been sent successfully."
                 )
 
-                server.send_message(
-                    email_message
-                )
+            print("Web3Forms Error:", result)
 
             return render_template(
                 "contact.html",
-                success="Your message has been sent successfully."
+                error="Message could not be sent. Please try again."
+            )
+
+        except requests.RequestException as error:
+            print("Contact Request Error:", error)
+
+            return render_template(
+                "contact.html",
+                error="Message could not be sent. Please try again."
             )
 
         except Exception as error:
-            print("Contact Email Error:", error)
+            print("Contact Error:", error)
 
             return render_template(
                 "contact.html",
@@ -191,7 +187,7 @@ Always follow the user's selected category, tone, language, and length.
         print("Gemini Error:", error)
 
         return jsonify({
-            "error": "AI response not found."
+            "error": "AI response not found. Please try again."
         }), 500
 
 

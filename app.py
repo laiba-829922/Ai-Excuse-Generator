@@ -90,69 +90,109 @@ def generate_excuse():
 
     if len(situation) > 1000:
         return jsonify({
-            "error": "Situation is too long. Please write a shorter description."
+            "error": (
+                "Situation is too long. "
+                "Please write a shorter description."
+            )
         }), 400
 
-     prompt = f"""
-User ki situation ke mutabiq ek natural aur believable excuse likho.
+    prompt = f"""
+Write one natural and believable excuse based on the information below.
 
-Situation: {situation}
-Category: {category}
-Tone: {tone}
-Language: {language}
-Length: {length}
+Situation:
+{situation}
 
-ROMAN URDU RULES:
+Category:
+{category}
 
-Agar language Roman Urdu ho:
+Tone:
+{tone}
 
-- Pakistani everyday Roman Urdu use karo.
-- Sentence ka word order bilkul natural hona chahiye.
-- Pehle subject, phir situation/reason, phir result likho.
-- Grammar correct rakho.
-- Past situation mein "tha", "thi", "the", "ho gaya tha",
-  "nahi kar saka" ya "nahi kar saki" sahi jagah use karo.
-- "Mujhe busy ho gaya" jaisi ghalat wording kabhi mat likho.
-- Iski jagah "Main busy ho gaya tha" ya
-  "Mujhe zaroori kaam aa gaya tha" likho.
-- English se word-by-word translation mat karo.
-- Hindi words jaise "samay", "kaaran", "praapt",
-  "avashyak" aur "kintu" use mat karo.
+Language:
+{language}
 
-NATURAL EXAMPLES:
+Length:
+{length}
 
-Wrong:
+
+ROMAN URDU RULES
+
+If the selected language is Roman Urdu:
+
+- Write in simple, natural Pakistani Roman Urdu.
+- The sentence must follow correct and natural word order.
+- Write like a real Pakistani person speaking normally.
+- Do not translate English into Roman Urdu word by word.
+- Use simple words such as:
+  main, mera, meri, mujhe, kyun ke, is liye,
+  achanak, zaroori, der ho gayi, nahi kar saka.
+- Do not use formal Hindi words such as:
+  samay, kaaran, praapt, avashyak, kintu or jhaankna.
+- Never write grammatically incorrect phrases such as:
+  "Mujhe busy ho gaya."
+- Write:
+  "Main busy ho gaya tha."
+  or:
+  "Mujhe achanak zaroori kaam aa gaya tha."
+
+Examples of natural Pakistani Roman Urdu:
+
+Incorrect:
 Mujhe thora busy ho gaya is liye main school ja nahi sakta.
 
 Correct:
-Main thora busy ho gaya tha, is liye school nahi ja saka.
+Mujhe achanak zaroori kaam aa gaya tha, is liye main school nahi ja saka.
 
-Wrong:
-Mujhe assignment complete karne mein samay nahi mila.
+Incorrect:
+Mujhe assignment karne ka samay nahi mila.
 
 Correct:
 Mujhe assignment complete karne ka time nahi mil saka.
 
-Wrong:
+Incorrect:
 Mere ghar mein kaam aa gaya.
 
 Correct:
 Ghar mein achanak zaroori kaam aa gaya tha, is liye mujhe rukna pada.
 
-LENGTH RULES:
 
-- Short: exactly 1 complete and natural sentence.
-- Medium: 2 to 3 complete sentences.
-- Long: 4 to 5 complete sentences.
+URDU RULES
 
-FINAL RULES:
+If the selected language is Urdu:
 
-- Sirf final excuse return karo.
-- Heading, title, explanation ya quotation marks mat lagao.
-- Sentence adhura ya grammar ke baghair mat likho.
-- Situation ko word-by-word repeat mat karo.
-- Excuse simple, realistic aur human-written lagna chahiye.
-- Illegal, dangerous ya harmful activity ke liye excuse mat banao.
+- Write only in natural Urdu script.
+- Use simple Pakistani Urdu.
+- Do not use difficult or formal vocabulary.
+
+
+ENGLISH RULES
+
+If the selected language is English:
+
+- Write in simple and natural English.
+- Make the sentence grammatically correct and believable.
+
+
+LENGTH RULES
+
+- Short: Write exactly one complete sentence.
+- Medium: Write exactly two or three complete sentences.
+- Long: Write exactly four or five complete sentences.
+
+
+FINAL RULES
+
+- Return only the final excuse.
+- Do not include a heading, title, label or explanation.
+- Do not use quotation marks.
+- Match the selected category and tone.
+- Do not copy the user's situation word for word.
+- Do not add random or confusing details.
+- The result must be grammatically correct.
+- The result must have a clear sentence sequence.
+- Make it natural, believable and human-written.
+- Do not create excuses for illegal, dangerous, harmful,
+  fraudulent or seriously unethical activities.
 """
 
     models = [
@@ -178,11 +218,13 @@ FINAL RULES:
                         {
                             "role": "system",
                             "content": (
-                                "You are an expert Pakistani Roman Urdu writer. "
-                                "Write grammatically correct, naturally ordered "
-                                "and conversational sentences. Never use broken "
-                                "Roman Urdu or literal Hindi-style translation. "
-                                "Return only the final excuse."
+                                "You are an expert Pakistani language writer. "
+                                "Create grammatically correct, naturally "
+                                "ordered and believable excuses. When Roman "
+                                "Urdu is selected, use simple everyday "
+                                "Pakistani Roman Urdu. Never use broken "
+                                "sentences, formal Hindi words or literal "
+                                "translations. Return only the final excuse."
                             )
                         },
                         {
@@ -190,16 +232,23 @@ FINAL RULES:
                             "content": prompt
                         }
                     ],
-                    temperature=0.35,
+                    temperature=0.25,
                     max_tokens=400
                 )
+
+                if not response.choices:
+                    continue
 
                 excuse = response.choices[0].message.content
 
                 if excuse and excuse.strip():
 
                     excuse = excuse.strip()
-                    excuse = excuse.strip('"').strip("'").strip()
+
+                    # Remove accidental quotation marks
+                    excuse = excuse.strip('"')
+                    excuse = excuse.strip("'")
+                    excuse = excuse.strip()
 
                     return jsonify({
                         "excuse": excuse
@@ -225,6 +274,27 @@ FINAL RULES:
             "Please wait a few seconds and try again."
         )
     }), 503
+
+
+# ================= ERROR HANDLERS =================
+
+@app.errorhandler(404)
+def page_not_found(error):
+
+    return jsonify({
+        "error": "Page not found."
+    }), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+
+    print("Internal Server Error:", error)
+
+    return jsonify({
+        "error": "Something went wrong. Please try again."
+    }), 500
+
 
 # ================= RUN APP =================
 

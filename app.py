@@ -1,5 +1,6 @@
 import os
 import time
+import random
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
@@ -89,7 +90,7 @@ def generate_excuse():
         }), 400
 
     prompt = f"""
-Generate one natural, believable, and realistic excuse.
+Create one safe, natural, believable and human-written excuse.
 
 Situation: {situation}
 Category: {category}
@@ -99,19 +100,19 @@ Length: {length}
 
 Rules:
 - Return only the excuse.
-- Do not include a title, heading, explanation, or quotation marks.
-- If length is short, write exactly 1 sentence.
-- If length is medium, write 2 to 3 sentences.
-- If length is long, write 4 to 5 sentences.
-- Make it sound natural and human-written.
-- Match the selected tone and language.
-- Avoid repetitive wording.
-- Do not help with illegal, dangerous, harmful, or unethical activities.
+- Do not add a title, heading, explanation or quotation marks.
+- For short length, write exactly 1 sentence.
+- For medium length, write 2 to 3 sentences.
+- For long length, write 4 to 5 sentences.
+- Follow the selected language and tone.
+- Keep the wording natural and non-repetitive.
+- Do not create excuses for illegal, dangerous, harmful,
+  dishonest or unethical activities.
 """
 
     models = [
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite"
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash"
     ]
 
     last_error = None
@@ -121,17 +122,26 @@ Rules:
         for attempt in range(3):
 
             try:
+                print(
+                    f"Trying model: {model_name}, "
+                    f"attempt: {attempt + 1}"
+                )
+
                 response = client.models.generate_content(
                     model=model_name,
                     contents=prompt
                 )
 
                 if response.text and response.text.strip():
+
+                    excuse = response.text.strip()
+
                     return jsonify({
-                        "excuse": response.text.strip()
+                        "excuse": excuse
                     }), 200
 
             except Exception as error:
+
                 last_error = error
 
                 print(
@@ -140,16 +150,33 @@ Rules:
                 )
 
                 if attempt < 2:
-                    time.sleep(2 ** attempt)
+                    delay = (2 ** attempt) + random.uniform(0, 1)
+                    time.sleep(delay)
 
     print("Final Gemini Error:", last_error)
 
     return jsonify({
         "error": (
             "AI is temporarily busy. "
-            "Please wait a few seconds and try again."
+            "Please wait a minute and try again."
         )
     }), 503
+
+
+# ================= ERROR HANDLERS =================
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return jsonify({
+        "error": "Page not found."
+    }), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        "error": "Something went wrong. Please try again."
+    }), 500
 
 
 # ================= RUN APP =================
